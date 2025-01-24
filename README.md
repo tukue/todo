@@ -66,3 +66,19 @@ React with javascript
 AWS Appsync and Graphql
 Authentication : AWS cognito pool
 Database :  AWS dyanamo db 
+ 
+Docker Setup 
+
+Build the Docker image:
+docker build -t todo-app:v1 . 
+
+Run the container: 
+docker run -d -p 5000:5000 todo-app:v1
+
+Deploy to Kubernetes
+# Apply the deployment
+kubectl apply -f deployment.yaml
+
+# Verify deployment
+kubectl get pods
+kubectl get services
