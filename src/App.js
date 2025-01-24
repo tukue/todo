@@ -7,7 +7,6 @@ import { createTodo, updateTodo, deleteTodo} from './graphql/mutations';
 import { generateClient } from 'aws-amplify/api';
 import { listTodos, getTodo } from './graphql/queries';
 
-
 import awsconfig from './aws-exports';
 Amplify.configure(awsconfig);
 
