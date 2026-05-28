@@ -1,58 +1,132 @@
-Todo App
-This project is a simple Todo application built with React and AWS Amplify. It allows users to create, update, delete, and fetch todos. The application is containerized using Docker and can be deployed to a Kubernetes cluster.
+# Todo App — Serverless Web Application
 
-Tech Stack
-Frontend: React with JavaScript
-Backend: AWS AppSync and GraphQL
-Authentication: AWS Cognito
-Database: AWS DynamoDB
-Getting Started
-This project was bootstrapped with Create React App.
+A serverless todo application built with React and AWS Amplify. Users can create, update, delete, and fetch tasks with authentication.
 
-Available Scripts
-In the project directory, you can run:
+## System Architecture
 
-npm start: Runs the app in development mode. Open http://localhost:3000 to view it in your browser.
-npm test: Launches the test runner in interactive watch mode.
-npm run build: Builds the app for production to the build folder. It correctly bundles React in production mode and optimizes the build for the best performance.
+```mermaid
+graph TB
+    subgraph Client["Client Layer"]
+        Browser[Browser]
+        React["React SPA<br/>src/App.js"]
+    end
 
-Tech stack : 
-React with javascript
-AWS Appsync and Graphql
-Authentication : AWS cognito pool
-Database :  AWS dyanamo db 
- 
-Docker Setup 
+    subgraph AWS["AWS Cloud"]
+        subgraph Auth["Authentication"]
+            Cognito["Amazon Cognito<br/>User Pool + Identity Pool"]
+        end
 
-Build the Docker image:
-docker build -t todo-app:v1 . 
+        subgraph API["API Layer"]
+            AppSync["AWS AppSync<br/>GraphQL API"]
+            Resolvers["VTL Resolvers<br/>(auto-generated)"]
+        end
 
-Run the container: 
+        subgraph Storage["Data & Hosting"]
+            DynamoDB["Amazon DynamoDB<br/>Todo table<br/>PAY_PER_REQUEST"]
+            S3["Amazon S3"]
+            CF["CloudFront CDN"]
+        end
+    end
+
+    subgraph Deployment["Deployment (Alt)"]
+        Docker["Docker Container<br/>node:18-alpine"]
+        K8s["Kubernetes<br/>2 replicas + LoadBalancer"]
+    end
+
+    Browser --> React
+    React --> Cognito
+    React --> AppSync
+    AppSync --> Resolvers
+    Resolvers --> DynamoDB
+    S3 --> CF --> Browser
+    React --> Docker --> K8s
+```
+
+### Data Flow
+
+1. **Authentication** — User signs in via email/password through Cognito; the Amplify `<Authenticator>` component handles the UI and token management.
+2. **API Requests** — Authenticated user triggers CRUD operations via `generateClient().graphql()` calls to AppSync.
+3. **Authorization** — AppSync validates the Cognito JWT and enforces owner-based access (`@auth` rule).
+4. **Data** — AppSync resolvers read/write to the DynamoDB `Todo` table.
+5. **Hosting** — Static assets are served via S3 + CloudFront.
+
+## Tech Stack
+
+| Layer | Technology |
+|---|---|
+| Frontend | React 18, JavaScript |
+| API | AWS AppSync, GraphQL |
+| Auth | Amazon Cognito (email/password) |
+| Database | Amazon DynamoDB (PAY_PER_REQUEST) |
+| Hosting | S3 + CloudFront |
+| Containerization | Docker (node:18-alpine) |
+| Orchestration | Kubernetes (2 replicas) |
+
+## Getting Started
+
+This project was bootstrapped with [Create React App](https://github.com/facebook/create-react-app).
+
+### Prerequisites
+
+- Node.js 18+
+- AWS account with Amplify CLI configured
+
+### Install & Run
+
+```bash
+npm install
+npm start
+```
+
+Open [http://localhost:3000](http://localhost:3000).
+
+### Available Scripts
+
+| Script | Description |
+|---|---|
+| `npm start` | Run development server |
+| `npm test` | Launch test runner (watch mode) |
+| `npm run build` | Build for production |
+
+## Docker Setup
+
+```bash
+# Build image
+docker build -t todo-app:v1 .
+
+# Run container
 docker run -d -p 5000:5000 todo-app:v1
+```
 
-Deploy to Kubernetes
-# Apply the deployment
+## Deploy to Kubernetes
+
+```bash
+# Apply deployment and service
 kubectl apply -f deployment.yaml
 
-# Verify deployment
+# Verify
 kubectl get pods
 kubectl get services
+```
 
+## AWS Amplify Backend
 
-AWS Amplify Backend
-The application uses AWS Amplify to provide:
+The backend is defined in `amplify/` and provisioned via CloudFormation stacks:
 
-GraphQL API with AWS AppSync
-Authentication with Amazon Cognito
-Database with Amazon DynamoDB
-Hosting with Amazon S3 and CloudFront
-Architecture
+- **GraphQL API** — Single `Todo` model with `@model` and `@auth(rules: [{ allow: owner }])` directives.
+- **Authentication** — Cognito User Pool with email-based sign-in, 8-char minimum password, 30-day refresh token.
+- **Database** — DynamoDB table with on-demand billing.
+- **Hosting** — S3 bucket fronted by CloudFront distribution.
 
-The application follows a serverless architecture pattern:
+## Future Improvements
 
-React frontend for the user interface
-AWS AppSync for GraphQL API management
-AWS Cognito for user authentication and authorization
-AWS DynamoDB for data storage
-Docker for containerization
-Kubernetes for container orchestration
+- [ ] **UI Enhancements** — Replace console-logged results with a proper task list UI, inline editing, and completion toggles.
+- [ ] **Real-time Updates** — Subscribe to AppSync mutations via `graphql/subscriptions.js` for live sync across clients.
+- [ ] **Pagination & Search** — Implement `nextToken`-based pagination and filtering on `listTodos`.
+- [ ] **Offline Support** — Enable DataStore mode for offline-first functionality with automatic conflict resolution.
+- [ ] **CI/CD Pipeline** — Add GitHub Actions or Amplify deployments for automated build, test, and deploy.
+- [ ] **Unit & E2E Tests** — Expand test coverage beyond the boilerplate `App.test.js`.
+- [ ] **Container Port Alignment** — Fix the mismatch between `react-scripts` (port 3000) and the Docker/K8s config (port 5000) by adding a `PORT=5000` env variable.
+- [ ] **Custom Domain & SSL** — Attach a custom domain via Route 53 and ACM for the CloudFront distribution.
+- [ ] **Multi-Environment** — Set up separate dev, staging, and prod Amplify environments.
+- [ ] **Monitoring & Logging** — Enable CloudWatch logging for AppSync and X-Ray tracing for end-to-end observability.
